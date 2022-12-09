@@ -1,0 +1,104 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Redirection to HTTPS:
+  RewriteCond %{HTTPS} off 
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  
+  # Redirection of requests to index.html
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} -f [OR]
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} -d
+  RewriteRule ^.*$ - [NC,L]
+  RewriteRule (.*) index.html [NC,L]
+  
+  # 404
+  ErrorDocument 404 /404
+</IfModule>
+
+
+<FilesMatch "^(?!.*\.([0-9a-z]{20})\.).*$">
+  <IfModule mod_headers.c>
+    FileETag None
+    Header unset ETag
+    Header unset Pragma
+    Header unset Cache-Control
+    Header unset Last-Modified
+    Header set Pragma "no-cache"
+    Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
+    Header set Expires "Mon, 10 Apr 1972 00:00:00 GMT"
+  </IfModule>
+</FilesMatch>
+
+
+## Prevent information disclosure ##
+<FilesMatch "\.(md|exe|sh|bak|inc|pot|po|mo|log|sql)$">
+	Order allow,deny
+	Deny from all
+</FilesMatch>
+<Files robots.txt>
+	Allow from all
+</Files>
+<Files ads.txt>
+	Allow from all
+</Files>
+
+# Prevent directory browsing
+Options All -Indexes
+
+# Deny access to all .htaccess files
+<files ~ "^.*\.([Hh][Tt][Aa])">
+	order allow,deny
+	deny from all
+	satisfy all
+</files>
+
+# Blocks some XSS attacks
+<IfModule mod_rewrite.c>
+	RewriteCond %{QUERY_STRING} (\|%3E) [NC,OR]
+	RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+	RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+	RewriteRule .* index.php [F,L]
+</IfModule>
+
+# Restricts access to PHP files from plugin and theme directories
+RewriteCond %{REQUEST_URI} !^service/assets/plugins/file/to/exclude\.php
+RewriteCond %{REQUEST_URI} !^service/assets/plugins/directory/to/exclude/
+RewriteRule wp-content/plugins/(.*\.php)$ - [R=404,L]
+RewriteCond %{REQUEST_URI} !^service/assets/themes/file/to/exclude\.php
+RewriteCond %{REQUEST_URI} !^service/assets/themes/directory/to/exclude/
+RewriteRule wp-content/themes/(.*\.php)$ - [R=404,L]
+<FilesMatch "^.*(error_log|wp-config\.php|php.ini|\.[hH][tT][aApP].*)$">
+	Order deny,allow
+	Deny from all
+</FilesMatch>
+
+# Security Headers
+<IfModule mod_headers.c>
+	Header set X-XSS-Protection "1; mode=block"
+	Header set X-Frame-Options "SAMEORIGIN"
+	Header set X-Content-Type-Options "nosniff"
+	Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; 	Header set Content-Security-Policy: script-src 'self'
+	Header set Referrer-Policy "same-origin"
+	Header set Feature-Policy "geolocation 'self'; vibrate 'none'"
+
+</IfModule>
+
+# Disable server signature
+ServerSignature Off
+
+# Webp Support
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteCond %{HTTP_ACCEPT} image/webp
+	RewriteCond %{REQUEST_FILENAME} (.*)\.(jpe?g|png|gif)$
+	RewriteCond %{REQUEST_FILENAME}\.webp -f
+	RewriteCond %{QUERY_STRING} !type=original
+	RewriteRule (.+)\.(jpe?g|png|gif)$ %{REQUEST_FILENAME}.webp [T=image/webp,L]
+</IfModule>
+<IfModule mod_headers.c>
+	<FilesMatch "\.(jpe?g|png|gif)$">
+		Header append Vary Accept
+	</FilesMatch>
+</IfModule>
+AddType image/webp .webp
